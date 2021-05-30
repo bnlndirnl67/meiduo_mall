@@ -7,24 +7,48 @@ from random import randint
 from django_redis import get_redis_connection
 from meiduo_mall.libs.yuntongxun.sms import CCP
 from rest_framework.response import Response
+from threading import Thread
+
 # Create your views here.
+
+
+def send_sms_code(mobile, sms_code):
+    ccp = CCP()
+    ccp.send_template_sms(mobile, [sms_code, '5'], 1)
 
 
 class SMS_CODEView(APIView):
 
     # 短信验证码
     def get(self, request, mobile):
-        #1.获取前端传递的手机号,路径中进行正则匹配
-        #2.生成短信验证码
+        # 1.获取前端传递的手机号,路径中进行正则匹配
+        # 判断前端发送请求的时间间隔 60s
+        # 建立链接redis的对象
+        conn = get_redis_connection('sms_code')
+        flag = conn.get('sms_code_flag_%s' % mobile)
+        if flag:
+            return Response({'error': '请求过于频繁'}, status=400)
+        # 2.生成短信验证码
         sms_code = '%06d' % randint(0, 999999)
-        #3.保存验证码到缓存中
+        # 3.保存验证码到缓存中
             # 建立链接redis对象
         conn = get_redis_connection('sms_code')
         # string类型写入
         # setex三个参数,第一个参数是key值,第二个是有效期,第三个是value值
-        conn.setex('sms_code_%s'%mobile, 300, sms_code)
-        #4.发送短信
-        ccp = CCP()
-        ccp.send_template_sms(mobile, [sms_code, '5'], 1)
-        #5.结果返回
-        return Response({'message':'ok'})
+        # 常规用法
+        # conn.setex('sms_code_%s'%mobile, 300, sms_code)
+        # conn.setex('sms_code_flag_%s' % mobile, 60, 1)
+        # 管道用法
+        pl = conn.pipeline()
+        pl.setex('sms_code_%s'%mobile, 300, sms_code)
+        pl.setex('sms_code_flag_%s' % mobile, 60, 1)
+        # 连接redis缓存，传入写入指令
+        pl.execute()
+        # 4.发送短信
+        # ccp = CCP()
+        # ccp.send_template_sms(mobile, [sms_code, '5'], 1)
+        t = Thread(target='send_sms_code', kwargs={'mobile': mobile, 'sms_code': sms_code})
+        t.start()
+        t.join()
+        # 5.结果返回
+        return Response({'message': 'ok'})
