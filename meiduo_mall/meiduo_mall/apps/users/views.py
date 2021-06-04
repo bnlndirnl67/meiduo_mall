@@ -8,13 +8,14 @@ from django_redis import get_redis_connection
 from meiduo_mall.libs.yuntongxun.sms import CCP
 from rest_framework.response import Response
 from threading import Thread
+from celery_tasks.sms.tasks import send_sms_code
 
 # Create your views here.
 
 
-def send_sms_code(mobile, sms_code):
-    ccp = CCP()
-    ccp.send_template_sms(mobile, [sms_code, '5'], 1)
+# def send_sms_code(mobile, sms_code):
+#     ccp = CCP()
+#     ccp.send_template_sms(mobile, [sms_code, '5'], 1)
 
 
 class SMS_CODEView(APIView):
@@ -47,8 +48,11 @@ class SMS_CODEView(APIView):
         # 4.发送短信
         # ccp = CCP()
         # ccp.send_template_sms(mobile, [sms_code, '5'], 1)
-        t = Thread(target='send_sms_code', kwargs={'mobile': mobile, 'sms_code': sms_code})
-        t.start()
-        t.join()
+        # 使用线程发送短信
+        # t = Thread(target='send_sms_code', kwargs={'mobile': mobile, 'sms_code': sms_code})
+        # t.start()
+        # t.join()
+        # 使用celery发送短信
+        send_sms_code.delay(mobile, sms_code)
         # 5.结果返回
         return Response({'message': 'ok'})
