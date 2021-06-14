@@ -9,7 +9,6 @@ from meiduo_mall.libs.yuntongxun.sms import CCP
 from rest_framework.response import Response
 from threading import Thread
 from celery_tasks.sms.tasks import send_sms_code
-
 # Create your views here.
 
 
@@ -56,3 +55,40 @@ class SMS_CODEView(APIView):
         send_sms_code.delay(mobile, sms_code)
         # 5.结果返回
         return Response({'message': 'ok'})
+
+
+class UserNameView(APIView):
+    def get(self, request, username):
+        # 1、获取前端数据，正则就匹配数据
+        # 2、根据用户名查询用户对象数量
+        count = User.objects.filter(username=username).count()
+        # 3、返回对象数量[count]，前端会自动判断存在不存在
+        return Response(
+            {
+                'count': count,
+            }
+        )
+
+
+class MobileView(APIView):
+    def get(self, request, mobile):
+        # 1、获取前端数据，正则就匹配数据
+        # 2、根据用户名查询用户对象数量
+        count = User.objects.filter(mobile=mobile).count()
+        # 3、返回对象数量[count]，前端会自动判断存在不存在
+        return Response(
+            {
+                'count': count,
+            }
+        )
+
+
+
+
+
+
+
+
+
+
+
